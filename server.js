@@ -33,7 +33,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
 app.use(session({ secret: process.env.SESSION_SECRET || 'hwid_secret_2025', resave: false, saveUninitialized: false, cookie: { maxAge: 86400000 } }));
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'gerasHUBsystem';
 
 function generateKey(prefix, segments, segLen) {
   const p = (prefix || 'KEY').toUpperCase().replace(/[^A-Z0-9]/g, '') || 'KEY';
@@ -260,4 +260,7 @@ app.post('/api/admin/key/reset-hwid', adminAuth, (req, res) => {
 });
 
 app.use((req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-app.listen(PORT, '0.0.0.0', () => console.log('Servidor na porta ' + PORT));
+app.listen(PORT, '0.0.0.0', () => {
+  console.log('Servidor na porta ' + PORT);
+  console.log('ADMIN_PASSWORD carregada:', ADMIN_PASSWORD ? '✓ definida (' + ADMIN_PASSWORD.length + ' caracteres)' : '✗ VAZIA');
+});
