@@ -376,14 +376,24 @@
 
   async function adminLogin() {
     const pass = document.getElementById('adminPass').value;
-    const r = await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pass})}).then(x=>x.json());
-    if (r.ok) {
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('adminApp').style.display = 'block';
-      loadData();
-    } else {
+    if (!pass) { document.getElementById('loginErr').textContent = 'Digite a senha.'; document.getElementById('loginErr').style.display = 'block'; return; }
+    const btn = document.querySelector('#loginScreen .btn');
+    btn.textContent = 'Entrando...'; btn.disabled = true;
+    try {
+      const r = await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pass})}).then(x=>x.json());
+      if (r.ok) {
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('adminApp').style.display = 'block';
+        loadData();
+      } else {
+        document.getElementById('loginErr').textContent = r.msg || 'Senha incorreta.';
+        document.getElementById('loginErr').style.display = 'block';
+      }
+    } catch(e) {
+      document.getElementById('loginErr').textContent = 'Erro de conexão com o servidor.';
       document.getElementById('loginErr').style.display = 'block';
     }
+    btn.textContent = 'Acessar Painel'; btn.disabled = false;
   }
 
   async function adminLogout() {
@@ -577,9 +587,12 @@
       keySegments: document.getElementById('sSegments').value,
       segmentLength: document.getElementById('sSegLen').value
     };
-    const r = await fetch('/api/admin/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(x=>x.json());
-    toast(r.msg, r.ok);
-    if (r.ok) { document.getElementById('keyPreview').textContent = r.preview; loadData(); }
+    try {
+      const r = await fetch('/api/admin/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(x=>x.json());
+      toast(r.msg, r.ok);
+      if (r.ok && r.preview) document.getElementById('keyPreview').textContent = r.preview;
+      if (r.ok) loadData();
+    } catch(e) { toast('Erro ao salvar configurações.', false); }
   }
 
   function updateDurationFromKeyType() {
