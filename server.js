@@ -249,7 +249,22 @@ app.post('/api/admin/key/delete', adminAuth, (req, res) => {
   saveDB(db); res.json({ ok: true, msg: 'Key deletada.' });
 });
 
-app.post('/api/admin/key/reset-hwid', adminAuth, (req, res) => {
+app.post('/api/admin/settings', adminAuth, (req, res) => {
+  const { keyPrefix, keySegments, segmentLength } = req.body;
+  const db = loadDB();
+  if (!db.settings) db.settings = {};
+  db.settings.keyPrefix = (keyPrefix || 'KEY').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10) || 'KEY';
+  db.settings.keySegments = Math.min(Math.max(Number(keySegments) || 2, 1), 6);
+  db.settings.segmentLength = Math.min(Math.max(Number(segmentLength) || 8, 4), 16);
+  saveDB(db);
+  const preview = generateKey(db.settings.keyPrefix, db.settings.keySegments, db.settings.segmentLength);
+  res.json({ ok: true, msg: 'Configurações salvas!', preview });
+});
+
+app.get('/api/admin/settings', adminAuth, (req, res) => {
+  const db = loadDB();
+  res.json({ ok: true, settings: db.settings || { keyPrefix: 'KEY', keySegments: 2, segmentLength: 8 } });
+});
   const { id, newHwid } = req.body;
   const db = loadDB();
   const key = db.keys.find(k => k.id === Number(id));
@@ -262,5 +277,5 @@ app.post('/api/admin/key/reset-hwid', adminAuth, (req, res) => {
 app.use((req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.listen(PORT, '0.0.0.0', () => {
   console.log('Servidor na porta ' + PORT);
-  console.log('ADMIN_PASSWORD carregada:', ADMIN_PASSWORD ? '✓ definida (' + ADMIN_PASSWORD.length + ' caracteres)' : '✗ VAZIA');
+  console.log('ADMIN_PASSWORD: ' + (ADMIN_PASSWORD ? '✓ definida' : '✗ VAZIA'));
 });
