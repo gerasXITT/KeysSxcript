@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GeraSX — HWID Key Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0a0a0f; --surface: #111118; --border: #1e1e2e;
+    --accent: #7c3aed; --accent2: #a855f7; --green: #22c55e;
+    --red: #ef4444; --yellow: #eab308; --blue: #3b82f6;
+    --text: #e2e8f0; --muted: #64748b;
+    --mono: 'Share Tech Mono', monospace; --sans: 'Syne', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; overflow-x: hidden; }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: linear-gradient(rgba(124,58,237,.04) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,.04) 1px, transparent 1px);
+    background-size: 40px 40px; pointer-events: none; z-index: 0;
+  }
+  .orb { position: fixed; width: 500px; height: 500px; border-radius: 50%; pointer-events: none; z-index: 0; }
+  .orb1 { background: radial-gradient(circle, rgba(124,58,237,.13) 0%, transparent 70%); top: -120px; left: -120px; animation: fl 9s ease-in-out infinite; }
+  .orb2 { background: radial-gradient(circle, rgba(168,85,247,.09) 0%, transparent 70%); bottom: -120px; right: -120px; animation: fl 11s ease-in-out infinite reverse; }
+  @keyframes fl { 0%,100%{transform:translate(0,0)} 50%{transform:translate(25px,25px)} }
+
+  header {
+    position: relative; z-index: 10;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 36px; border-bottom: 1px solid var(--border);
+    background: rgba(10,10,15,.85); backdrop-filter: blur(12px);
+  }
+  .logo { font-size: 1.3rem; font-weight: 800; background: linear-gradient(135deg, var(--accent2), #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .logo span { -webkit-text-fill-color: var(--muted); font-weight: 400; font-size: .85rem; }
+  #headerRight { display: flex; gap: 10px; align-items: center; font-size: .82rem; color: var(--muted); }
+  #headerRight strong { color: var(--accent2); }
+
+  main { position: relative; z-index: 5; max-width: 520px; margin: 0 auto; padding: 52px 20px; display: flex; flex-direction: column; gap: 22px; }
+
+  .hero-tag { display: inline-flex; align-items: center; gap: 6px; background: rgba(124,58,237,.15); border: 1px solid rgba(124,58,237,.3); color: var(--accent2); padding: 4px 12px; border-radius: 99px; font-size: .72rem; letter-spacing: 1px; text-transform: uppercase; width: fit-content; }
+  .hero-tag::before { content: '●'; font-size: .45rem; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  h1 { font-size: 2.1rem; font-weight: 800; line-height: 1.15; letter-spacing: -1px; }
+  h1 em { font-style: normal; color: var(--accent2); }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 26px; position: relative; overflow: hidden; }
+  .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--accent), transparent); }
+
+  .tabs { display: flex; gap: 4px; background: var(--bg); border-radius: 8px; padding: 4px; margin-bottom: 22px; }
+  .tab { flex: 1; padding: 8px; border-radius: 6px; border: none; background: transparent; color: var(--muted); cursor: pointer; font-family: var(--sans); font-size: .84rem; font-weight: 600; transition: all .2s; }
+  .tab.active { background: var(--accent); color: #fff; }
+
+  .form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+  label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  input { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; color: var(--text); font-family: var(--sans); font-size: .92rem; transition: border-color .2s; outline: none; }
+  input:focus { border-color: var(--accent); }
+
+  .btn { width: 100%; padding: 13px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; border-radius: 8px; color: #fff; font-family: var(--sans); font-size: 1rem; font-weight: 700; cursor: pointer; transition: opacity .2s, transform .1s; }
+  .btn:hover { opacity: .88; } .btn:active { transform: scale(.98); } .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .create-link { text-align: center; margin-top: 14px; font-size: .8rem; color: var(--muted); }
+  .create-link a { color: var(--accent2); text-decoration: none; font-weight: 600; }
+
+  #dashPanel { display: none; flex-direction: column; gap: 20px; }
+
+  .no-plan-msg { font-size: .95rem; color: var(--text); line-height: 1.8; }
+  .no-plan-msg a { color: var(--accent2); font-weight: 700; text-decoration: none; }
+
+  .plan-badge { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 8px; font-size: .82rem; font-weight: 600; border: 1px solid; }
+  .plan-badge.active { background: rgba(34,197,94,.1); border-color: rgba(34,197,94,.3); color: var(--green); }
+
+  .type-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 18px; }
+  .type-btn { padding: 10px 6px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--muted); cursor: pointer; font-family: var(--sans); font-size: .75rem; font-weight: 700; text-align: center; transition: all .2s; line-height: 1.4; }
+  .type-btn .icon { font-size: 1.1rem; display: block; margin-bottom: 3px; }
+  .type-btn:hover { border-color: var(--accent); color: var(--text); }
+  .type-btn.selected { border-color: var(--accent); background: rgba(124,58,237,.18); color: var(--accent2); }
+
+  .prefix-section { border-top: 1px solid var(--border); padding-top: 18px; margin-top: 16px; }
+  .prefix-title { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px; }
+  .prefix-row { display: grid; grid-template-columns: 1fr 80px 80px; gap: 8px; align-items: end; margin-bottom: 10px; }
+  .prefix-preview { font-family: var(--mono); font-size: .78rem; color: var(--green); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; margin-bottom: 10px; }
+  .btn-outline { padding: 9px 18px; background: rgba(124,58,237,.15); border: 1px solid var(--accent); border-radius: 7px; color: var(--accent2); font-family: var(--sans); font-size: .8rem; font-weight: 700; cursor: pointer; transition: all .2s; }
+  .btn-outline:hover { background: rgba(124,58,237,.3); }
+
+  .key-box { background: var(--bg); border: 1px solid rgba(34,197,94,.3); border-radius: 8px; padding: 14px 16px; font-family: var(--mono); font-size: .88rem; color: var(--green); display: flex; justify-content: space-between; align-items: center; gap: 10px; word-break: break-all; }
+  .copy-btn { background: rgba(34,197,94,.15); border: 1px solid rgba(34,197,94,.3); color: var(--green); padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: .72rem; white-space: nowrap; font-family: var(--sans); transition: all .2s; }
+  .copy-btn:hover { background: rgba(34,197,94,.28); }
+  .key-expiry { font-size: .74rem; margin-top: 6px; font-family: var(--mono); }
+
+  .keys-list { display: flex; flex-direction: column; gap: 7px; }
+  .key-item { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-family: var(--mono); font-size: .76rem; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .kv { color: var(--text); }
+  .kt { font-size: .68rem; padding: 2px 7px; border-radius: 99px; border: 1px solid; }
+  .kt-daily    { color: var(--yellow); border-color: rgba(234,179,8,.3);   background: rgba(234,179,8,.08); }
+  .kt-weekly   { color: var(--blue);   border-color: rgba(59,130,246,.3);  background: rgba(59,130,246,.08); }
+  .kt-monthly  { color: var(--accent2);border-color: rgba(168,85,247,.3);  background: rgba(168,85,247,.08); }
+  .kt-lifetime { color: var(--green);  border-color: rgba(34,197,94,.3);   background: rgba(34,197,94,.08); }
+
+  .msg { padding: 10px 14px; border-radius: 8px; font-size: .83rem; display: none; margin-top: 10px; }
+  .msg.ok  { background: rgba(34,197,94,.1);  border: 1px solid rgba(34,197,94,.25);  color: var(--green); display: block; }
+  .msg.err { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2);   color: var(--red);   display: block; }
+
+  .btn-sm { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; font-family: var(--sans); font-size: .78rem; transition: all .2s; }
+  .btn-sm:hover { border-color: var(--accent); color: var(--accent2); }
+
+  .counter { font-size: .78rem; color: var(--muted); margin-bottom: 14px; }
+  .counter span { color: var(--accent2); font-weight: 700; }
+
+  footer { position: relative; z-index: 5; text-align: center; padding: 28px; color: var(--muted); font-size: .76rem; border-top: 1px solid var(--border); }
+  footer a { color: var(--accent2); text-decoration: none; }
+
+  @media(max-width:480px) {
+    header{padding:14px 18px;} main{padding:36px 14px;} h1{font-size:1.7rem;}
+    .type-grid{grid-template-columns:repeat(2,1fr);} .prefix-row{grid-template-columns:1fr 70px 70px;}
+  }
+</style>
+</head>
+<body>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<header>
+  <div class="logo">GeraSX <span>// keys</span></div>
+  <div id="headerRight">
+    <span id="hUserText" style="display:none">Olá, <strong id="hUsername"></strong></span>
+    <button class="btn-sm" id="hLogoutBtn" style="display:none" onclick="doLogout()">Sair</button>
+  </div>
+</header>
+
+<main>
+  <div>
+    <div class="hero-tag">Sistema Online</div><br>
+    <h1>Gere sua <em>HWID Key</em><br>em segundos.</h1>
+  </div>
+
+  <div class="card" id="authCard">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('login')">Entrar</button>
+      <button class="tab" onclick="switchTab('register')">Criar Conta</button>
+    </div>
+    <div id="loginForm">
+      <div class="form-group"><label>Usuário</label><input type="text" id="loginUser" placeholder="seu usuário"/></div>
+      <div class="form-group"><label>Senha</label><input type="password" id="loginPass" placeholder="••••••••"/></div>
+      <div class="msg" id="loginMsg"></div>
+      <button class="btn" onclick="doLogin()">Entrar no gerador</button>
+      <p class="create-link">Ainda não tem conta? <a href="#" onclick="switchTab('register');return false;">criar conta</a></p>
+    </div>
+    <div id="registerForm" style="display:none">
+      <div class="form-group"><label>Usuário</label><input type="text" id="regUser" placeholder="escolha um nome"/></div>
+      <div class="form-group"><label>Senha</label><input type="password" id="regPass" placeholder="mínimo 6 caracteres"/></div>
+      <div class="msg" id="regMsg"></div>
+      <button class="btn" onclick="doRegister()">Criar conta</button>
+      <p class="create-link">Já tem conta? <a href="#" onclick="switchTab('login');return false;">entrar</a></p>
+    </div>
+  </div>
+
+  <div id="dashPanel">
+    <div id="noPlanCard" class="card" style="display:none">
+      <p class="no-plan-msg">
+        Para conseguir gerar, compre o crie seu painel
+        <a href="https://discord.gg/gerasxitt" target="_blank">AQUI</a>
+        no nosso Discord. Após comprar, você poderá gerar suas keys.
+      </p>
+      <br>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:18px;text-align:center;">
+        <div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Plano disponível</div>
+        <div style="font-size:1rem;font-weight:800;color:var(--text)">COMPRE SEU PAINEL</div>
+        <div style="font-size:1.4rem;font-weight:800;color:var(--green);margin:6px 0">R$ 9,90</div>
+        <div style="font-size:.78rem;color:var(--muted);line-height:1.8">1000 keys • Prefixo personalizado<br>Diária / Semanal / Mensal / Vitalícia</div>
+      </div>
+    </div>
+
+    <div id="hasPlanCard" class="card" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:8px">
+        <span class="plan-badge active">✦ Plano Ativo</span>
+        <span style="font-size:.73rem;color:var(--muted)" id="planExpiry"></span>
+      </div>
+      <div class="counter">Keys geradas: <span id="keyCounter">0</span> / <span id="keyMax">1000</span></div>
+
+      <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Tipo da key</div>
+      <div class="type-grid">
+        <button class="type-btn" data-type="daily" onclick="selectType(this)">
+          <span class="icon">☀️</span>Diária<br><span style="font-size:.65rem;color:var(--muted)">1 dia</span>
+        </button>
+        <button class="type-btn" data-type="weekly" onclick="selectType(this)">
+          <span class="icon">📅</span>Semanal<br><span style="font-size:.65rem;color:var(--muted)">7 dias</span>
+        </button>
+        <button class="type-btn selected" data-type="monthly" onclick="selectType(this)">
+          <span class="icon">🗓️</span>Mensal<br><span style="font-size:.65rem;color:var(--muted)">30 dias</span>
+        </button>
+        <button class="type-btn" data-type="lifetime" onclick="selectType(this)">
+          <span class="icon">♾️</span>Vitalícia<br><span style="font-size:.65rem;color:var(--muted)">pra sempre</span>
+        </button>
+      </div>
+
+      <div style="margin-bottom:16px">
+        <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Seu HWID</div>
+        <div style="display:flex;gap:8px;align-items:stretch">
+          <input type="text" id="hwidInput" placeholder="Cole aqui seu HWID (ex: A1B2C3D4E5F6...)" style="flex:1;font-family:var(--mono);font-size:.82rem;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"/>
+        </div>
+        <div style="margin-top:6px;font-size:.7rem;color:var(--muted);line-height:1.6">
+          ⚙ Obtenha seu HWID rodando o script do seu sistema ou use o comando no nosso <a href="https://discord.gg/gerasxitt" target="_blank" style="color:var(--accent2);text-decoration:none;font-weight:600">Discord</a>.
+        </div>
+      </div>
+
+      <button class="btn" id="genBtn" onclick="generateKey()">⚡ Gerar Key</button>
+      <div class="msg" id="genMsg"></div>
+
+      <div id="keyResult" style="display:none;margin-top:14px">
+        <div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">Key gerada:</div>
+        <div class="key-box">
+          <span id="keyText"></span>
+          <button class="copy-btn" onclick="copyKey()">Copiar</button>
+        </div>
+        <div class="key-expiry" id="keyExpiry"></div>
+        <div style="margin-top:10px;background:var(--bg);border:1px solid rgba(124,58,237,.3);border-radius:8px;padding:12px 14px">
+          <div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🔒 HWID vinculado</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <span id="hwidDisplay" style="font-family:var(--mono);font-size:.8rem;color:var(--accent2);word-break:break-all"></span>
+            <button class="copy-btn" style="border-color:rgba(124,58,237,.3);color:var(--accent2);background:rgba(124,58,237,.1)" onclick="copyHwid()">Copiar</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="prefix-section">
+        <div class="prefix-title">⚙ Personalizar prefixo das suas keys</div>
+        <div class="prefix-row">
+          <div class="form-group" style="margin:0">
+            <label>Prefixo</label>
+            <input type="text" id="pPrefix" maxlength="10" placeholder="ex: MEUSITE" oninput="updatePrefixPreview()"/>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label>Blocos</label>
+            <input type="number" id="pSegments" min="1" max="4" value="2" oninput="updatePrefixPreview()"/>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label>Tamanho</label>
+            <input type="number" id="pSegLen" min="4" max="12" value="8" oninput="updatePrefixPreview()"/>
+          </div>
+        </div>
+        <div class="prefix-preview" id="prefixPreview">KEY-XXXXXXXX-XXXXXXXX</div>
+        <button class="btn-outline" onclick="savePrefix()">Salvar prefixo</button>
+        <div class="msg" id="prefixMsg"></div>
+      </div>
+    </div>
+
+    <div class="card" id="keysCard" style="display:none">
+      <div style="font-size:.78rem;font-weight:700;margin-bottom:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Suas Keys</div>
+      <div class="keys-list" id="keysList"></div>
+    </div>
+  </div>
+</main>
+
+<footer>GeraSX &copy; 2025 — <a href="https://discord.gg/gerasxitt" target="_blank">Discord</a></footer>
+
+<script>
+  let selectedType = 'monthly';
+
+  function selectType(btn) {
+    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedType = btn.dataset.type;
+  }
+
+  function updatePrefixPreview() {
+    const prefix = (document.getElementById('pPrefix').value || 'KEY').toUpperCase();
+    const segs = parseInt(document.getElementById('pSegments').value) || 2;
+    const len = parseInt(document.getElementById('pSegLen').value) || 8;
+    const parts = Array.from({length: segs}, () => 'X'.repeat(len));
+    document.getElementById('prefixPreview').textContent = prefix + '-' + parts.join('-');
+  }
+
+  async function savePrefix() {
+    const body = { keyPrefix: document.getElementById('pPrefix').value, keySegments: document.getElementById('pSegments').value, segmentLength: document.getElementById('pSegLen').value };
+    const r = await fetch('/api/user/prefix',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(x=>x.json());
+    showMsg('prefixMsg', r.msg, r.ok?'ok':'err');
+    if (r.ok) document.getElementById('prefixPreview').textContent = r.preview;
+  }
+
+  async function checkSession() {
+    const r = await fetch('/api/me').then(x=>x.json());
+    if (r.ok) showDash(r);
+  }
+
+  function showDash(data) {
+    document.getElementById('authCard').style.display = 'none';
+    document.getElementById('dashPanel').style.display = 'flex';
+    document.getElementById('hUserText').style.display = 'inline';
+    document.getElementById('hUsername').textContent = data.username;
+    document.getElementById('hLogoutBtn').style.display = 'inline';
+
+    if (!data.plan || data.expired) {
+      document.getElementById('noPlanCard').style.display = 'block';
+      document.getElementById('hasPlanCard').style.display = 'none';
+    } else {
+      document.getElementById('noPlanCard').style.display = 'none';
+      document.getElementById('hasPlanCard').style.display = 'block';
+      document.getElementById('planExpiry').textContent = data.planIsLifetime ? '♾ Vitalício' : data.planExpiry ? 'Expira ' + new Date(data.planExpiry).toLocaleDateString('pt-BR') : '';
+      document.getElementById('keyCounter').textContent = data.keysGenerated;
+      document.getElementById('keyMax').textContent = data.maxKeys;
+      document.getElementById('pPrefix').value = data.keyPrefix || 'KEY';
+      document.getElementById('pSegments').value = data.keySegments || 2;
+      document.getElementById('pSegLen').value = data.segmentLength || 8;
+      updatePrefixPreview();
+    }
+
+    if (data.keys && data.keys.length > 0) {
+      document.getElementById('keysCard').style.display = 'block';
+      const labels = { daily:'Diária', weekly:'Semanal', monthly:'Mensal', lifetime:'Vitalícia' };
+      document.getElementById('keysList').innerHTML = data.keys.slice().reverse().map(k => {
+        const exp = k.isLifetime ? '♾' : k.keyExpiry ? new Date(k.keyExpiry).toLocaleDateString('pt-BR') : '';
+        return `<div class="key-item">
+          <span class="kv">${k.key}</span>
+          <span class="kt kt-${k.keyType||'monthly'}">${labels[k.keyType]||''}</span>
+          <span style="font-size:.68rem;color:var(--muted)">${exp}</span>
+          ${k.hwid ? `<span style="font-family:var(--mono);font-size:.66rem;color:var(--accent2);background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.2);border-radius:4px;padding:2px 7px" title="HWID vinculado">🔒 ${k.hwid}</span>` : ''}
+        </div>`;
+      }).join('');
+    } else {
+      document.getElementById('keysCard').style.display = 'none';
+    }
+  }
+
+  function switchTab(tab) {
+    document.getElementById('loginForm').style.display = tab==='login'?'block':'none';
+    document.getElementById('registerForm').style.display = tab==='register'?'block':'none';
+    document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',(i===0&&tab==='login')||(i===1&&tab==='register')));
+  }
+
+  function showMsg(id, msg, type) {
+    const el = document.getElementById(id);
+    el.textContent = msg; el.className = 'msg ' + type;
+    setTimeout(()=>el.className='msg', 4000);
+  }
+
+  async function doLogin() {
+    const username = document.getElementById('loginUser').value.trim();
+    const password = document.getElementById('loginPass').value;
+    if (!username || !password) return showMsg('loginMsg','Preencha todos os campos.','err');
+    const r = await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})}).then(x=>x.json());
+    if (r.ok) await checkSession(); else showMsg('loginMsg',r.msg,'err');
+  }
+
+  async function doRegister() {
+    const username = document.getElementById('regUser').value.trim();
+    const password = document.getElementById('regPass').value;
+    const r = await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})}).then(x=>x.json());
+    showMsg('regMsg',r.msg,r.ok?'ok':'err');
+    if (r.ok) setTimeout(()=>switchTab('login'),1500);
+  }
+
+  async function doLogout() { await fetch('/api/logout',{method:'POST'}); location.reload(); }
+
+  async function generateKey() {
+    const hwid = document.getElementById('hwidInput').value.trim();
+    if (!hwid) {
+      showMsg('genMsg','Informe seu HWID antes de gerar a key.','err');
+      document.getElementById('hwidInput').focus();
+      return;
+    }
+    document.getElementById('genBtn').disabled = true;
+    document.getElementById('keyResult').style.display = 'none';
+    const r = await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({keyType:selectedType,hwid})}).then(x=>x.json());
+    document.getElementById('genBtn').disabled = false;
+    if (r.ok) {
+      document.getElementById('keyText').textContent = r.key;
+      document.getElementById('hwidDisplay').textContent = r.hwid;
+      document.getElementById('keyResult').style.display = 'block';
+      const expEl = document.getElementById('keyExpiry');
+      if (r.isLifetime) { expEl.textContent = '♾ Vitalícia — nunca expira'; expEl.style.color='var(--green)'; }
+      else if (r.keyExpiry) { expEl.textContent = '⏱ Expira: ' + new Date(r.keyExpiry).toLocaleDateString('pt-BR'); expEl.style.color='var(--accent2)'; }
+      else expEl.textContent = '';
+      showMsg('genMsg','Key gerada com sucesso!','ok');
+      setTimeout(checkSession, 600);
+    } else if (r.msg==='NOPLAN') {
+      showMsg('genMsg','Você precisa de um plano. Compre no Discord!','err');
+    } else {
+      showMsg('genMsg',r.msg,'err');
+    }
+  }
+
+  function copyHwid() {
+    navigator.clipboard.writeText(document.getElementById('hwidDisplay').textContent).then(()=>{
+      const btns = document.querySelectorAll('.copy-btn');
+      btns.forEach(b=>{ if(b.onclick && b.getAttribute('onclick')==='copyHwid()') { b.textContent='✓ Copiado'; setTimeout(()=>b.textContent='Copiar',2000); } });
+    });
+  }
+
+  function copyKey() {
+    navigator.clipboard.writeText(document.getElementById('keyText').textContent).then(()=>{
+      const b = document.querySelector('.copy-btn'); b.textContent='✓ Copiado'; setTimeout(()=>b.textContent='Copiar',2000);
+    });
+  }
+
+  document.addEventListener('keydown', e=>{
+    if (e.key==='Enter') {
+      if (document.getElementById('loginForm').style.display!=='none') doLogin();
+      else if (document.getElementById('registerForm').style.display!=='none') doRegister();
+    }
+  });
+
+  checkSession();
+</script>
+</body>
+</html>

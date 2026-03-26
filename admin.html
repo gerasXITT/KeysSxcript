@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Admin — GeraSX</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:#08080d;--surface:#0f0f17;--card:#13131d;--border:#1a1a2e;
+    --accent:#7c3aed;--accent2:#a855f7;--green:#22c55e;--red:#ef4444;
+    --yellow:#eab308;--text:#e2e8f0;--muted:#64748b;
+    --mono:'Share Tech Mono',monospace;--sans:'Syne',sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;}
+  body::before{
+    content:'';position:fixed;inset:0;
+    background-image:linear-gradient(rgba(124,58,237,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(124,58,237,.03) 1px,transparent 1px);
+    background-size:40px 40px;pointer-events:none;z-index:0;
+  }
+
+  /* LOGIN */
+  #loginScreen{
+    position:fixed;inset:0;z-index:100;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--bg);
+  }
+  .login-box{
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:16px;padding:36px;width:340px;
+    position:relative;overflow:hidden;
+  }
+  .login-box::before{
+    content:'';position:absolute;top:0;left:0;right:0;height:2px;
+    background:linear-gradient(90deg,transparent,var(--accent),transparent);
+  }
+  .login-logo{font-size:1.3rem;font-weight:800;margin-bottom:6px;
+    background:linear-gradient(135deg,var(--accent2),#c084fc);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  }
+  .login-sub{font-size:.78rem;color:var(--muted);margin-bottom:24px;}
+  .form-group{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+  label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+  input{
+    background:var(--bg);border:1px solid var(--border);border-radius:8px;
+    padding:10px 13px;color:var(--text);font-family:var(--sans);font-size:.9rem;outline:none;
+    transition:border-color .2s;
+  }
+  input:focus{border-color:var(--accent);}
+  .btn{
+    width:100%;padding:11px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+    border:none;border-radius:8px;color:#fff;font-family:var(--sans);font-size:.95rem;
+    font-weight:700;cursor:pointer;transition:opacity .2s;
+  }
+  .btn:hover{opacity:.88;}
+  .err-msg{font-size:.8rem;color:var(--red);margin-top:8px;display:none;}
+
+  /* LAYOUT */
+  #adminApp{display:none;position:relative;z-index:5;}
+  .top-bar{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:14px 28px;background:rgba(8,8,13,.9);
+    border-bottom:1px solid var(--border);backdrop-filter:blur(10px);
+    position:sticky;top:0;z-index:50;
+  }
+  .bar-logo{font-size:1.1rem;font-weight:800;color:var(--accent2);}
+  .bar-logo span{color:var(--muted);font-weight:400;font-size:.85rem;}
+  .btn-sm{
+    padding:6px 14px;border-radius:6px;border:1px solid var(--border);
+    background:var(--card);color:var(--text);cursor:pointer;
+    font-family:var(--sans);font-size:.78rem;transition:all .2s;
+  }
+  .btn-sm:hover{border-color:var(--accent);color:var(--accent2);}
+
+  .layout{display:flex;min-height:calc(100vh - 53px);}
+
+  /* SIDEBAR */
+  .sidebar{
+    width:210px;min-height:100%;
+    border-right:1px solid var(--border);
+    padding:20px 12px;
+    background:var(--surface);
+    flex-shrink:0;
+  }
+  .nav-item{
+    display:flex;align-items:center;gap:10px;
+    padding:9px 12px;border-radius:8px;
+    color:var(--muted);cursor:pointer;
+    font-size:.85rem;font-weight:600;
+    transition:all .2s;margin-bottom:4px;
+  }
+  .nav-item:hover,.nav-item.active{background:rgba(124,58,237,.15);color:var(--accent2);}
+  .nav-item .icon{font-size:1rem;width:18px;text-align:center;}
+
+  .content{flex:1;padding:28px;overflow-x:hidden;}
+
+  /* STATS */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:28px;}
+  .stat-card{
+    background:var(--card);border:1px solid var(--border);border-radius:10px;
+    padding:16px;
+  }
+  .stat-label{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+  .stat-value{font-size:1.8rem;font-weight:800;color:var(--text);}
+  .stat-value.green{color:var(--green);}
+  .stat-value.purple{color:var(--accent2);}
+
+  /* SECTION */
+  .section{display:none;}
+  .section.active{display:block;}
+  .section-title{font-size:1.1rem;font-weight:700;margin-bottom:18px;color:var(--text);}
+
+  /* TABLE */
+  .table-wrap{overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;}
+  th{
+    font-size:.7rem;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.5px;padding:10px 12px;
+    border-bottom:1px solid var(--border);text-align:left;
+  }
+  td{
+    padding:10px 12px;font-size:.82rem;
+    border-bottom:1px solid rgba(255,255,255,.04);
+    vertical-align:middle;
+  }
+  tr:hover td{background:rgba(255,255,255,.02);}
+  .badge{
+    display:inline-block;padding:3px 9px;border-radius:99px;
+    font-size:.7rem;font-weight:700;
+  }
+  .badge.green{background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.25);}
+  .badge.red{background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.2);}
+  .badge.purple{background:rgba(124,58,237,.15);color:var(--accent2);border:1px solid rgba(124,58,237,.3);}
+  .badge.yellow{background:rgba(234,179,8,.1);color:var(--yellow);border:1px solid rgba(234,179,8,.2);}
+
+  .action-btn{
+    padding:4px 10px;border-radius:5px;border:1px solid var(--border);
+    background:var(--bg);color:var(--text);cursor:pointer;
+    font-size:.72rem;font-family:var(--sans);transition:all .2s;margin:2px;
+  }
+  .action-btn:hover{border-color:var(--accent);color:var(--accent2);}
+  .action-btn.danger{color:var(--red);border-color:rgba(239,68,68,.3);}
+  .action-btn.danger:hover{background:rgba(239,68,68,.1);}
+  .action-btn.success{color:var(--green);border-color:rgba(34,197,94,.3);}
+  .action-btn.success:hover{background:rgba(34,197,94,.1);}
+
+  /* PLAN FORM */
+  .plan-form-card{
+    background:var(--card);border:1px solid var(--border);
+    border-radius:12px;padding:22px;margin-bottom:20px;
+  }
+  .plan-form-title{font-size:.9rem;font-weight:700;margin-bottom:16px;color:var(--accent2);}
+  .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:14px;}
+  .form-group-sm{display:flex;flex-direction:column;gap:5px;}
+  .btn-save{
+    padding:9px 22px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+    border:none;border-radius:7px;color:#fff;font-family:var(--sans);
+    font-size:.85rem;font-weight:700;cursor:pointer;transition:opacity .2s;
+  }
+  .btn-save:hover{opacity:.88;}
+  .btn-new{
+    padding:8px 16px;border:1px solid var(--accent);border-radius:7px;
+    background:transparent;color:var(--accent2);font-family:var(--sans);
+    font-size:.82rem;font-weight:600;cursor:pointer;transition:all .2s;margin-bottom:16px;
+  }
+  .btn-new:hover{background:rgba(124,58,237,.15);}
+
+  .toast{
+    position:fixed;bottom:24px;right:24px;z-index:999;
+    background:var(--surface);border:1px solid var(--green);
+    color:var(--green);padding:10px 18px;border-radius:8px;
+    font-size:.85rem;font-weight:600;
+    transform:translateY(80px);opacity:0;
+    transition:all .3s;
+  }
+  .toast.show{transform:translateY(0);opacity:1;}
+  .toast.error{border-color:var(--red);color:var(--red);}
+
+  select{
+    background:var(--bg);border:1px solid var(--border);border-radius:6px;
+    padding:5px 8px;color:var(--text);font-family:var(--sans);font-size:.8rem;outline:none;
+  }
+
+  @media(max-width:600px){
+    .sidebar{width:48px;padding:20px 6px;}
+    .nav-item span{display:none;}
+    .content{padding:16px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">GeraSX</div>
+    <div class="login-sub">// painel administrativo</div>
+    <div class="form-group">
+      <label>Senha de Acesso</label>
+      <input type="password" id="adminPass" placeholder="••••••••" autofocus/>
+    </div>
+    <button class="btn" onclick="adminLogin()">Acessar Painel</button>
+    <div class="err-msg" id="loginErr">Senha incorreta.</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="adminApp">
+  <div class="top-bar">
+    <div class="bar-logo">GeraSX <span>/ admin</span></div>
+    <button class="btn-sm" onclick="adminLogout()">Sair</button>
+  </div>
+  <div class="layout">
+    <nav class="sidebar">
+      <div class="nav-item active" onclick="goSection('dashboard',this)">
+        <span class="icon">📊</span><span>Dashboard</span>
+      </div>
+      <div class="nav-item" onclick="goSection('users',this)">
+        <span class="icon">👥</span><span>Usuários</span>
+      </div>
+      <div class="nav-item" onclick="goSection('keys',this)">
+        <span class="icon">🔑</span><span>Keys</span>
+      </div>
+      <div class="nav-item" onclick="goSection('plans',this)">
+        <span class="icon">📦</span><span>Planos</span>
+      </div>
+      <div class="nav-item" onclick="goSection('settings',this)">
+        <span class="icon">⚙️</span><span>Formato Key</span>
+      </div>
+    </nav>
+
+    <div class="content">
+      <!-- DASHBOARD -->
+      <div class="section active" id="sec-dashboard">
+        <div class="section-title">Visão Geral</div>
+        <div class="stats">
+          <div class="stat-card">
+            <div class="stat-label">Usuários</div>
+            <div class="stat-value purple" id="s-users">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Keys Geradas</div>
+            <div class="stat-value green" id="s-keys">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Com Plano</div>
+            <div class="stat-value" id="s-withplan">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Planos Ativos</div>
+            <div class="stat-value" id="s-plans">—</div>
+          </div>
+        </div>
+        <div style="color:var(--muted);font-size:.82rem;line-height:1.8;">
+          Bem-vindo ao painel admin do <strong style="color:var(--accent2)">GeraSX</strong>.<br>
+          Aqui você gerencia usuários, atribui planos manualmente e configura os tipos de plano.<br>
+          Após o cliente comprar no Discord, use a aba <strong>Usuários</strong> para atribuir o plano correspondente.
+        </div>
+      </div>
+
+      <!-- USERS -->
+      <div class="section" id="sec-users">
+        <div class="section-title">Gerenciar Usuários</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Usuário</th><th>Plano</th><th>Expira</th><th>Keys</th><th>Criado</th><th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="usersTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- KEYS -->
+      <div class="section" id="sec-keys">
+        <div class="section-title">Todas as Keys</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Key</th><th>Usuário</th><th>HWID</th><th>Tipo</th><th>Expira</th><th>Gerada em</th><th>Ações</th></tr>
+            </thead>
+            <tbody id="keysTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PLANS -->
+      <div class="section" id="sec-plans">
+        <div class="section-title">Gerenciar Planos</div>
+        <button class="btn-new" onclick="openNewPlan()">+ Novo Plano</button>
+        <div id="planFormWrap" style="display:none">
+          <div class="plan-form-card">
+            <div class="plan-form-title" id="planFormTitle">Novo Plano</div>
+            <div class="form-grid">
+              <div class="form-group-sm">
+                <label>Nome</label>
+                <input type="text" id="pName" placeholder="ex: VIP"/>
+              </div>
+              <div class="form-group-sm">
+                <label>Duração (dias)</label>
+                <input type="number" id="pDuration" placeholder="ex: 30"/>
+              </div>
+              <div class="form-group-sm">
+                <label>Máx. de Keys</label>
+                <input type="number" id="pMaxKeys" placeholder="ex: 1"/>
+              </div>
+              <div class="form-group-sm">
+                <label>Preço (exibição)</label>
+                <input type="text" id="pPrice" placeholder="ex: R$ 15,00"/>
+              </div>
+              <div class="form-group-sm">
+                <label>Tipo de Key</label>
+                <select id="pKeyType" onchange="updateDurationFromKeyType()">
+                  <option value="daily">Diária (1 dia)</option>
+                  <option value="weekly">Semanal (7 dias)</option>
+                  <option value="monthly" selected>Mensal (30 dias)</option>
+                  <option value="lifetime">Vitalícia</option>
+                </select>
+              </div>
+            </div>
+            <input type="hidden" id="pId"/>
+            <button class="btn-save" onclick="savePlan()">Salvar Plano</button>
+            <button class="btn-sm" style="margin-left:8px" onclick="cancelPlanForm()">Cancelar</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Nome</th><th>Tipo</th><th>Duração</th><th>Max Keys</th><th>Preço</th><th>Status</th><th>Ações</th></tr>
+            </thead>
+            <tbody id="plansTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="section" id="sec-settings">
+        <div class="section-title">Formato das Keys</div>
+        <div class="plan-form-card">
+          <div class="plan-form-title">Personalizar prefixo e formato</div>
+          <div style="font-size:.8rem;color:var(--muted);margin-bottom:16px">
+            Exemplo com prefixo <strong style="color:var(--accent2)">MEUSITE</strong> e 2 blocos de 8: <code style="color:var(--green)">MEUSITE-A1B2C3D4-E5F6G7H8</code>
+          </div>
+          <div class="form-grid">
+            <div class="form-group-sm">
+              <label>Prefixo</label>
+              <input type="text" id="sPrefix" placeholder="ex: KEY, MEUSITE, VIP" maxlength="10" oninput="updatePreview()"/>
+            </div>
+            <div class="form-group-sm">
+              <label>Nº de blocos</label>
+              <input type="number" id="sSegments" min="1" max="6" placeholder="ex: 2" oninput="updatePreview()"/>
+            </div>
+            <div class="form-group-sm">
+              <label>Tamanho de cada bloco</label>
+              <input type="number" id="sSegLen" min="4" max="16" placeholder="ex: 8" oninput="updatePreview()"/>
+            </div>
+          </div>
+          <div style="margin-bottom:14px">
+            <span style="font-size:.78rem;color:var(--muted)">Preview: </span>
+            <code id="keyPreview" style="color:var(--green);font-size:.85rem">---</code>
+          </div>
+          <button class="btn-save" onclick="saveSettings()">Salvar Formato</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  let DB = null;
+
+  async function adminLogin() {
+    const pass = document.getElementById('adminPass').value;
+    const r = await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pass})}).then(x=>x.json());
+    if (r.ok) {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('adminApp').style.display = 'block';
+      loadData();
+    } else {
+      document.getElementById('loginErr').style.display = 'block';
+    }
+  }
+
+  async function adminLogout() {
+    await fetch('/api/admin/logout',{method:'POST'});
+    location.reload();
+  }
+
+  async function loadData() {
+    const r = await fetch('/api/admin/data').then(x=>x.json());
+    if (!r.ok) return;
+    DB = r;
+    renderStats();
+    renderUsers();
+    renderKeys();
+    renderPlans();
+    loadSettings();
+  }
+
+  function renderStats() {
+    const now = new Date();
+    document.getElementById('s-users').textContent = DB.users.length;
+    document.getElementById('s-keys').textContent = DB.keys.length;
+    document.getElementById('s-withplan').textContent = DB.users.filter(u=>u.plan&&new Date(u.planExpiry)>now).length;
+    document.getElementById('s-plans').textContent = DB.plans.filter(p=>p.active).length;
+  }
+
+  function renderUsers() {
+    const now = new Date();
+    const tb = document.getElementById('usersTable');
+    tb.innerHTML = DB.users.map(u => {
+      const expired = u.planExpiry && new Date(u.planExpiry) < now;
+      const hasPlan = u.plan && !expired;
+      const uKeys = DB.keys.filter(k=>k.userId===u.id).length;
+      const expStr = u.planExpiry ? new Date(u.planExpiry).toLocaleDateString('pt-BR') : '—';
+      const planOptions = DB.plans.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+      return `<tr>
+        <td style="font-weight:700">${u.username}</td>
+        <td>${hasPlan ? `<span class="badge green">${u.plan}</span>` : `<span class="badge red">Sem plano</span>`}</td>
+        <td style="color:var(--muted);font-size:.78rem">${expStr}</td>
+        <td>${uKeys}</td>
+        <td style="color:var(--muted);font-size:.75rem">${new Date(u.createdAt).toLocaleDateString('pt-BR')}</td>
+        <td>
+          <select id="sel-${u.id}" style="margin-right:4px">${planOptions}</select>
+          <button class="action-btn success" onclick="assignPlan(${u.id})">Atribuir</button>
+          <button class="action-btn danger" onclick="removePlan(${u.id})">Remover Plano</button>
+        </td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:20px">Nenhum usuário cadastrado.</td></tr>';
+  }
+
+  function renderKeys() {
+    const tb = document.getElementById('keysTable');
+    const typeLabels = { daily:'Diária', weekly:'Semanal', monthly:'Mensal', lifetime:'Vitalícia' };
+    const typeColors = { daily:'yellow', weekly:'purple', monthly:'purple', lifetime:'green' };
+    tb.innerHTML = DB.keys.map(k=>{
+      const expired = !k.isLifetime && k.keyExpiry && new Date(k.keyExpiry) < new Date();
+      const expStr = k.isLifetime ? '♾ Vitalícia' : k.keyExpiry ? new Date(k.keyExpiry).toLocaleDateString('pt-BR') : '—';
+      return `<tr>
+        <td style="font-family:var(--mono);font-size:.75rem;color:#a855f7">${k.key}</td>
+        <td style="font-weight:600">${k.username}</td>
+        <td style="font-family:var(--mono);font-size:.7rem;color:var(--accent2)">${k.hwid || '—'}</td>
+        <td><span class="badge ${typeColors[k.keyType]||'purple'}">${typeLabels[k.keyType]||k.keyType}</span></td>
+        <td style="color:${expired?'var(--red)':'var(--muted)'};font-size:.75rem">${expStr}${expired?' ⚠':'':''}</td>
+        <td style="color:var(--muted);font-size:.75rem">${new Date(k.createdAt).toLocaleDateString('pt-BR')}</td>
+        <td>
+          <button class="action-btn" onclick="resetHwid(${k.id},'${k.hwid||''}')">Reset HWID</button>
+          <button class="action-btn danger" onclick="deleteKey(${k.id})">Deletar</button>
+        </td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:20px">Nenhuma key gerada.</td></tr>';
+  }
+
+  const KEY_TYPE_LABELS = { daily:'Diaria', weekly:'Semanal', monthly:'Mensal', lifetime:'Vitalicia' };
+  function renderPlans() {
+    const tb = document.getElementById('plansTable');
+    tb.innerHTML = DB.plans.map(p=>{
+      const typeLabel = KEY_TYPE_LABELS[p.keyType] || p.keyType || 'Mensal';
+      const typeColor = p.keyType==='lifetime' ? 'green' : p.keyType==='daily' ? 'yellow' : 'purple';
+      return `<tr>
+        <td style="font-weight:700">${p.name}</td>
+        <td><span class="badge ${typeColor}">${typeLabel}</span></td>
+        <td>${p.keyType==='lifetime' ? 'Vitalicio' : p.duration+' dias'}</td>
+        <td>${p.maxKeys}</td>
+        <td style="color:var(--green)">${p.price}</td>
+        <td>${p.active ? '<span class="badge green">Ativo</span>' : '<span class="badge red">Inativo</span>'}</td>
+        <td>
+          <button class="action-btn" onclick="editPlan(${p.id})">Editar</button>
+          <button class="action-btn danger" onclick="deletePlan(${p.id})">Deletar</button>
+        </td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:20px">Nenhum plano criado.</td></tr>';
+  }
+
+  async function assignPlan(userId) {
+    const planId = document.getElementById(`sel-${userId}`).value;
+    const r = await fetch('/api/admin/user/plan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId,planId})}).then(x=>x.json());
+    toast(r.msg, r.ok);
+    if (r.ok) loadData();
+  }
+
+  async function removePlan(userId) {
+    if (!confirm('Remover plano deste usuário?')) return;
+    const r = await fetch('/api/admin/user/plan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId,planId:'remove'})}).then(x=>x.json());
+    toast(r.msg, r.ok);
+    if (r.ok) loadData();
+  }
+
+  async function resetHwid(id, currentHwid) {
+    const newHwid = prompt('Novo HWID para esta key (deixe em branco para manter o atual):\n\nAtual: ' + (currentHwid || '(vazio)'));
+    if (newHwid === null) return; // cancelou
+    const r = await fetch('/api/admin/key/reset-hwid',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id, newHwid})}).then(x=>x.json());
+    toast(r.msg, r.ok);
+    if (r.ok) loadData();
+  }
+
+  async function deleteKey(id) {
+    if (!confirm('Deletar esta key?')) return;
+    const r = await fetch('/api/admin/key/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})}).then(x=>x.json());
+    toast(r.msg, r.ok);
+    if (r.ok) loadData();
+  }
+
+  function openNewPlan() {
+    document.getElementById('pId').value = '';
+    document.getElementById('pName').value = '';
+    document.getElementById('pDuration').value = '';
+    document.getElementById('pMaxKeys').value = '';
+    document.getElementById('pPrice').value = '';
+    document.getElementById('planFormTitle').textContent = 'Novo Plano';
+    document.getElementById('planFormWrap').style.display = 'block';
+  }
+
+  function editPlan(id) {
+    const p = DB.plans.find(x=>x.id===id);
+    document.getElementById('pId').value = p.id;
+    document.getElementById('pName').value = p.name;
+    document.getElementById('pDuration').value = p.duration;
+    document.getElementById('pMaxKeys').value = p.maxKeys;
+    document.getElementById('pPrice').value = p.price;
+    document.getElementById('pKeyType').value = p.keyType || 'monthly';
+    document.getElementById('planFormTitle').textContent = 'Editar Plano';
+    document.getElementById('planFormWrap').style.display = 'block';
+  }
+
+  function cancelPlanForm() { document.getElementById('planFormWrap').style.display = 'none'; }
+
+  async function savePlan() {
+    const keyType = document.getElementById('pKeyType').value;
+    const body = {
+      id: document.getElementById('pId').value || null,
+      name: document.getElementById('pName').value,
+      duration: keyType === 'lifetime' ? 0 : document.getElementById('pDuration').value,
+      keyType,
+      maxKeys: document.getElementById('pMaxKeys').value,
+      price: document.getElementById('pPrice').value,
+      active: true
+    };
+    if (!body.name || !body.maxKeys) return toast('Preencha todos os campos.', false);
+    const r = await fetch('/api/admin/plan/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(x=>x.json());
+    toast(r.msg, r.ok);
+    if (r.ok) { cancelPlanForm(); loadData(); }
+  }
+
+  async function deletePlan(id) {
+    if (!confirm('Deletar este plano?')) return;
+    const r = await fetch('/api/admin/plan/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})}).then(x=>x.json());
+    toast(r.msg, r.ok);
+    if (r.ok) loadData();
+  }
+
+
+  function loadSettings() {
+    if (!DB || !DB.settings) return;
+    document.getElementById('sPrefix').value = DB.settings.keyPrefix || 'KEY';
+    document.getElementById('sSegments').value = DB.settings.keySegments || 2;
+    document.getElementById('sSegLen').value = DB.settings.segmentLength || 8;
+    updatePreview();
+  }
+
+  function updatePreview() {
+    const prefix = (document.getElementById('sPrefix').value || 'KEY').toUpperCase();
+    const segs = parseInt(document.getElementById('sSegments').value) || 2;
+    const len = parseInt(document.getElementById('sSegLen').value) || 8;
+    const parts = Array.from({length: segs}, () => 'X'.repeat(len));
+    document.getElementById('keyPreview').textContent = prefix + '-' + parts.join('-');
+  }
+
+  async function saveSettings() {
+    const body = {
+      keyPrefix: document.getElementById('sPrefix').value,
+      keySegments: document.getElementById('sSegments').value,
+      segmentLength: document.getElementById('sSegLen').value
+    };
+    const r = await fetch('/api/admin/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(x=>x.json());
+    toast(r.msg, r.ok);
+    if (r.ok) { document.getElementById('keyPreview').textContent = r.preview; loadData(); }
+  }
+
+  function updateDurationFromKeyType() {
+    const kt = document.getElementById('pKeyType').value;
+    const durEl = document.getElementById('pDuration');
+    const map = { daily:1, weekly:7, monthly:30, lifetime:0 };
+    if (map[kt] !== undefined) durEl.value = map[kt];
+  }
+
+  function goSection(name, el) {
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    document.getElementById('sec-'+name).classList.add('active');
+    el.classList.add('active');
+  }
+
+  function toast(msg, ok=true) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (ok ? '' : ' error');
+    setTimeout(()=>t.className='toast', 3000);
+  }
+
+  document.getElementById('adminPass').addEventListener('keydown', e=>{ if(e.key==='Enter') adminLogin(); });
+
+  // auto check se já está logado
+  fetch('/api/admin/data').then(x=>x.json()).then(r=>{
+    if (r.ok) {
+      document.getElementById('loginScreen').style.display='none';
+      document.getElementById('adminApp').style.display='block';
+      DB = r; renderStats(); renderUsers(); renderKeys(); renderPlans();
+    }
+  });
+</script>
+</body>
+</html>
