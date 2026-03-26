@@ -7,18 +7,15 @@ const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
 const DB_FILE = path.join(__dirname, 'data', 'db.json');
 
 function loadDB() {
   if (!fs.existsSync(path.join(__dirname, 'data'))) fs.mkdirSync(path.join(__dirname, 'data'));
   if (!fs.existsSync(DB_FILE)) {
     const initial = {
-      users: [],
-      keys: [],
-      plans: [
-        { id: 1, name: 'COMPRE SEU PAINEL', duration: 0, keyType: 'lifetime', maxKeys: 1000, price: 'R$ 9,90', active: true }
-      ]
+      users: [], keys: [],
+      plans: [{ id: 1, name: 'COMPRE SEU PAINEL', duration: 0, keyType: 'lifetime', maxKeys: 1000, price: 'R$ 9,90', active: true }],
+      settings: { keyPrefix: 'KEY', keySegments: 2, segmentLength: 8 }
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(initial, null, 2));
     return initial;
@@ -31,7 +28,11 @@ function saveDB(data) { fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2))
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
-app.use(session({ secret: process.env.SESSION_SECRET || 'hwid_secret_2025', resave: false, saveUninitialized: false, cookie: { maxAge: 86400000 } }));
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'hwid_secret_2025',
+  resave: false, saveUninitialized: false,
+  cookie: { maxAge: 86400000 }
+}));
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'gerasHUBsystem';
 
@@ -53,11 +54,9 @@ function getKeyExpiry(keyType) {
   return d.toISOString();
 }
 
-// HTML routes
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.get('/paineladmDOtheGERAS', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 
-// AUTH
 app.post('/api/register', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.json({ ok: false, msg: 'Preencha todos os campos.' });
@@ -67,12 +66,7 @@ app.post('/api/register', async (req, res) => {
   if (db.users.find(u => u.username.toLowerCase() === username.toLowerCase()))
     return res.json({ ok: false, msg: 'Usuario ja existe.' });
   const hash = await bcrypt.hash(password, 10);
-  db.users.push({
-    id: Date.now(), username, password: hash,
-    plan: null, planExpiry: null, maxKeys: 0,
-    keyPrefix: 'KEY', keySegments: 2, segmentLength: 8,
-    createdAt: new Date().toISOString()
-  });
+  db.users.push({ id: Date.now(), username, password: hash, plan: null, planExpiry: null, maxKeys: 0, keyPrefix: 'KEY', keySegments: 2, segmentLength: 8, createdAt: new Date().toISOString() });
   saveDB(db);
   res.json({ ok: true, msg: 'Conta criada!' });
 });
@@ -97,17 +91,7 @@ app.get('/api/me', (req, res) => {
   const now = new Date();
   const expired = user.planExpiry && new Date(user.planExpiry) < now;
   const userKeys = db.keys.filter(k => k.userId === user.id);
-  res.json({
-    ok: true, username: user.username,
-    plan: expired ? null : user.plan,
-    planExpiry: user.planExpiry,
-    planIsLifetime: !user.planExpiry && !!user.plan,
-    expired, maxKeys: expired ? 0 : user.maxKeys,
-    keysGenerated: userKeys.length, keys: userKeys,
-    keyPrefix: user.keyPrefix || 'KEY',
-    keySegments: user.keySegments || 2,
-    segmentLength: user.segmentLength || 8
-  });
+  res.json({ ok: true, username: user.username, plan: expired ? null : user.plan, planExpiry: user.planExpiry, planIsLifetime: !user.planExpiry && !!user.plan, expired, maxKeys: expired ? 0 : user.maxKeys, keysGenerated: userKeys.length, keys: userKeys, keyPrefix: user.keyPrefix || 'KEY', keySegments: user.keySegments || 2, segmentLength: user.segmentLength || 8 });
 });
 
 app.get('/api/plans', (req, res) => {
@@ -115,7 +99,6 @@ app.get('/api/plans', (req, res) => {
   res.json({ plans: db.plans.filter(p => p.active) });
 });
 
-// Usuário salva seu próprio prefixo
 app.post('/api/user/prefix', (req, res) => {
   if (!req.session.userId) return res.json({ ok: false, msg: 'Nao autenticado.' });
   const { keyPrefix, keySegments, segmentLength } = req.body;
@@ -127,42 +110,32 @@ app.post('/api/user/prefix', (req, res) => {
   user.keySegments = Math.min(Math.max(Number(keySegments) || 2, 1), 4);
   user.segmentLength = Math.min(Math.max(Number(segmentLength) || 8, 4), 12);
   saveDB(db);
-  const preview = generateKey(user.keyPrefix, user.keySegments, user.segmentLength);
-  res.json({ ok: true, msg: 'Prefixo salvo!', preview });
+  res.json({ ok: true, msg: 'Prefixo salvo!', preview: generateKey(user.keyPrefix, user.keySegments, user.segmentLength) });
 });
 
-// Gerar key — usuário escolhe o tipo e informa o próprio HWID
 app.post('/api/generate', (req, res) => {
   if (!req.session.userId) return res.json({ ok: false, msg: 'Nao autenticado.' });
-  const { keyType, hwid } = req.body; // daily | weekly | monthly | lifetime
+  const { keyType, hwid } = req.body;
   const validTypes = ['daily', 'weekly', 'monthly', 'lifetime'];
   if (!validTypes.includes(keyType)) return res.json({ ok: false, msg: 'Tipo de key invalido.' });
-
-  // Validar HWID fornecido pelo usuário
-  if (!hwid || typeof hwid !== 'string' || hwid.trim().length < 4)
-    return res.json({ ok: false, msg: 'Informe seu HWID antes de gerar.' });
+  if (!hwid || typeof hwid !== 'string' || hwid.trim().length < 4) return res.json({ ok: false, msg: 'Informe seu HWID antes de gerar.' });
   const cleanHwid = hwid.trim().toUpperCase().replace(/[^A-Z0-9\-_]/g, '').slice(0, 64);
   if (cleanHwid.length < 4) return res.json({ ok: false, msg: 'HWID invalido. Minimo 4 caracteres.' });
-
   const db = loadDB();
   const user = db.users.find(u => u.id === req.session.userId);
   if (!user) return res.json({ ok: false, msg: 'Usuario nao encontrado.' });
-  const now = new Date();
-  const planExpired = user.planExpiry && new Date(user.planExpiry) < now;
+  const planExpired = user.planExpiry && new Date(user.planExpiry) < new Date();
   if (!user.plan || planExpired) return res.json({ ok: false, msg: 'NOPLAN' });
   const userKeys = db.keys.filter(k => k.userId === user.id);
   if (userKeys.length >= user.maxKeys) return res.json({ ok: false, msg: 'Limite de ' + user.maxKeys + ' keys atingido.' });
-
   const key = generateKey(user.keyPrefix || 'KEY', user.keySegments || 2, user.segmentLength || 8);
   const keyExpiry = getKeyExpiry(keyType);
   const isLifetime = keyType === 'lifetime';
-
   db.keys.push({ id: Date.now(), userId: user.id, username: user.username, key, hwid: cleanHwid, keyType, keyExpiry, isLifetime, createdAt: new Date().toISOString() });
   saveDB(db);
   res.json({ ok: true, key, hwid: cleanHwid, keyType, keyExpiry, isLifetime });
 });
 
-// VALIDAÇÃO PÚBLICA — endpoint para apps externos verificarem key + HWID
 app.post('/api/validate', (req, res) => {
   const { key, hwid } = req.body;
   if (!key || !hwid) return res.json({ valid: false, reason: 'key e hwid sao obrigatorios.' });
@@ -170,12 +143,10 @@ app.post('/api/validate', (req, res) => {
   const entry = db.keys.find(k => k.key === key.trim().toUpperCase());
   if (!entry) return res.json({ valid: false, reason: 'Key nao encontrada.' });
   if (entry.hwid !== hwid.trim().toUpperCase()) return res.json({ valid: false, reason: 'HWID nao corresponde.' });
-  if (!entry.isLifetime && entry.keyExpiry && new Date(entry.keyExpiry) < new Date())
-    return res.json({ valid: false, reason: 'Key expirada.', expiredAt: entry.keyExpiry });
+  if (!entry.isLifetime && entry.keyExpiry && new Date(entry.keyExpiry) < new Date()) return res.json({ valid: false, reason: 'Key expirada.', expiredAt: entry.keyExpiry });
   res.json({ valid: true, username: entry.username, keyType: entry.keyType, keyExpiry: entry.keyExpiry, isLifetime: entry.isLifetime, hwid: entry.hwid });
 });
 
-// Também aceita GET para facilitar testes: /api/validate?key=XXX&hwid=YYY
 app.get('/api/validate', (req, res) => {
   const { key, hwid } = req.query;
   if (!key || !hwid) return res.json({ valid: false, reason: 'key e hwid sao obrigatorios.' });
@@ -183,8 +154,7 @@ app.get('/api/validate', (req, res) => {
   const entry = db.keys.find(k => k.key === key.trim().toUpperCase());
   if (!entry) return res.json({ valid: false, reason: 'Key nao encontrada.' });
   if (entry.hwid !== hwid.trim().toUpperCase()) return res.json({ valid: false, reason: 'HWID nao corresponde.' });
-  if (!entry.isLifetime && entry.keyExpiry && new Date(entry.keyExpiry) < new Date())
-    return res.json({ valid: false, reason: 'Key expirada.', expiredAt: entry.keyExpiry });
+  if (!entry.isLifetime && entry.keyExpiry && new Date(entry.keyExpiry) < new Date()) return res.json({ valid: false, reason: 'Key expirada.', expiredAt: entry.keyExpiry });
   res.json({ valid: true, username: entry.username, keyType: entry.keyType, keyExpiry: entry.keyExpiry, isLifetime: entry.isLifetime, hwid: entry.hwid });
 });
 
@@ -193,6 +163,7 @@ app.post('/api/admin/login', (req, res) => {
   if (req.body.password === ADMIN_PASSWORD) { req.session.isAdmin = true; return res.json({ ok: true }); }
   res.json({ ok: false, msg: 'Senha incorreta.' });
 });
+
 app.post('/api/admin/logout', (req, res) => { req.session.isAdmin = false; res.json({ ok: true }); });
 
 function adminAuth(req, res, next) {
@@ -202,7 +173,7 @@ function adminAuth(req, res, next) {
 
 app.get('/api/admin/data', adminAuth, (req, res) => {
   const db = loadDB();
-  res.json({ ok: true, users: db.users.map(u => ({ ...u, password: undefined })), keys: db.keys, plans: db.plans });
+  res.json({ ok: true, users: db.users.map(u => ({ ...u, password: undefined })), keys: db.keys, plans: db.plans, settings: db.settings });
 });
 
 app.post('/api/admin/user/plan', adminAuth, (req, res) => {
@@ -249,22 +220,7 @@ app.post('/api/admin/key/delete', adminAuth, (req, res) => {
   saveDB(db); res.json({ ok: true, msg: 'Key deletada.' });
 });
 
-app.post('/api/admin/settings', adminAuth, (req, res) => {
-  const { keyPrefix, keySegments, segmentLength } = req.body;
-  const db = loadDB();
-  if (!db.settings) db.settings = {};
-  db.settings.keyPrefix = (keyPrefix || 'KEY').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10) || 'KEY';
-  db.settings.keySegments = Math.min(Math.max(Number(keySegments) || 2, 1), 6);
-  db.settings.segmentLength = Math.min(Math.max(Number(segmentLength) || 8, 4), 16);
-  saveDB(db);
-  const preview = generateKey(db.settings.keyPrefix, db.settings.keySegments, db.settings.segmentLength);
-  res.json({ ok: true, msg: 'Configurações salvas!', preview });
-});
-
-app.get('/api/admin/settings', adminAuth, (req, res) => {
-  const db = loadDB();
-  res.json({ ok: true, settings: db.settings || { keyPrefix: 'KEY', keySegments: 2, segmentLength: 8 } });
-});
+app.post('/api/admin/key/reset-hwid', adminAuth, (req, res) => {
   const { id, newHwid } = req.body;
   const db = loadDB();
   const key = db.keys.find(k => k.id === Number(id));
@@ -274,8 +230,25 @@ app.get('/api/admin/settings', adminAuth, (req, res) => {
   res.json({ ok: true, msg: 'HWID atualizado.', hwid: key.hwid });
 });
 
+app.post('/api/admin/settings', adminAuth, (req, res) => {
+  const { keyPrefix, keySegments, segmentLength } = req.body;
+  const db = loadDB();
+  if (!db.settings) db.settings = {};
+  db.settings.keyPrefix = (keyPrefix || 'KEY').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10) || 'KEY';
+  db.settings.keySegments = Math.min(Math.max(Number(keySegments) || 2, 1), 6);
+  db.settings.segmentLength = Math.min(Math.max(Number(segmentLength) || 8, 4), 16);
+  saveDB(db);
+  res.json({ ok: true, msg: 'Configuracoes salvas!', preview: generateKey(db.settings.keyPrefix, db.settings.keySegments, db.settings.segmentLength) });
+});
+
+app.get('/api/admin/settings', adminAuth, (req, res) => {
+  const db = loadDB();
+  res.json({ ok: true, settings: db.settings || { keyPrefix: 'KEY', keySegments: 2, segmentLength: 8 } });
+});
+
 app.use((req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log('Servidor na porta ' + PORT);
-  console.log('ADMIN_PASSWORD: ' + (ADMIN_PASSWORD ? '✓ definida' : '✗ VAZIA'));
+  console.log('ADMIN_PASSWORD: ' + (ADMIN_PASSWORD ? '✓ definida (' + ADMIN_PASSWORD.length + ' chars)' : '✗ VAZIA'));
 });
