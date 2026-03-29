@@ -87,6 +87,11 @@
   .copy-btn:hover { background: rgba(34,197,94,.28); }
   .key-expiry { font-size: .74rem; margin-top: 6px; font-family: var(--mono); }
 
+  .hwid-info-box { background: var(--bg); border: 1px solid rgba(124,58,237,.25); border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; }
+  .hwid-info-box .hwid-info-title { font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+  .hwid-info-box p { font-size: .78rem; color: var(--muted); line-height: 1.7; }
+  .hwid-info-box p strong { color: var(--accent2); }
+
   .keys-list { display: flex; flex-direction: column; gap: 7px; }
   .key-item { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-family: var(--mono); font-size: .76rem; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
   .kv { color: var(--text); }
@@ -95,6 +100,8 @@
   .kt-weekly   { color: var(--blue);   border-color: rgba(59,130,246,.3);  background: rgba(59,130,246,.08); }
   .kt-monthly  { color: var(--accent2);border-color: rgba(168,85,247,.3);  background: rgba(168,85,247,.08); }
   .kt-lifetime { color: var(--green);  border-color: rgba(34,197,94,.3);   background: rgba(34,197,94,.08); }
+
+  .hwid-tag-none { font-size: .66rem; color: var(--muted); background: rgba(100,116,139,.1); border: 1px solid rgba(100,116,139,.2); border-radius: 4px; padding: 2px 7px; font-family: var(--sans); }
 
   .msg { padding: 10px 14px; border-radius: 8px; font-size: .83rem; display: none; margin-top: 10px; }
   .msg.ok  { background: rgba(34,197,94,.1);  border: 1px solid rgba(34,197,94,.25);  color: var(--green); display: block; }
@@ -193,13 +200,18 @@
         </button>
       </div>
 
+      <!-- HWID — agora opcional -->
+      <div class="hwid-info-box">
+        <div class="hwid-info-title">🔒 HWID (opcional)</div>
+        <p>
+          Deixe <strong>vazio</strong> para vincular automaticamente ao primeiro dispositivo que usar a key.<br>
+          Ou cole seu HWID abaixo para vincular agora.
+        </p>
+      </div>
+
       <div style="margin-bottom:16px">
-        <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Seu HWID</div>
         <div style="display:flex;gap:8px;align-items:stretch">
-          <input type="text" id="hwidInput" placeholder="Cole aqui seu HWID (ex: A1B2C3D4E5F6...)" style="flex:1;font-family:var(--mono);font-size:.82rem;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"/>
-        </div>
-        <div style="margin-top:6px;font-size:.7rem;color:var(--muted);line-height:1.6">
-          ⚙ Obtenha seu HWID rodando o script do seu sistema ou use o comando no nosso <a href="https://discord.gg/gerasxitt" target="_blank" style="color:var(--accent2);text-decoration:none;font-weight:600">Discord</a>.
+          <input type="text" id="hwidInput" placeholder="Opcional — deixe vazio para vincular automaticamente" style="flex:1;font-family:var(--mono);font-size:.82rem;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"/>
         </div>
       </div>
 
@@ -213,11 +225,11 @@
           <button class="copy-btn" onclick="copyKey()">Copiar</button>
         </div>
         <div class="key-expiry" id="keyExpiry"></div>
-        <div style="margin-top:10px;background:var(--bg);border:1px solid rgba(124,58,237,.3);border-radius:8px;padding:12px 14px">
-          <div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🔒 HWID vinculado</div>
+        <div id="hwidResultBox" style="margin-top:10px;background:var(--bg);border:1px solid rgba(124,58,237,.3);border-radius:8px;padding:12px 14px">
+          <div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px" id="hwidResultTitle">🔒 HWID vinculado</div>
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
             <span id="hwidDisplay" style="font-family:var(--mono);font-size:.8rem;color:var(--accent2);word-break:break-all"></span>
-            <button class="copy-btn" style="border-color:rgba(124,58,237,.3);color:var(--accent2);background:rgba(124,58,237,.1)" onclick="copyHwid()">Copiar</button>
+            <button class="copy-btn" id="copyHwidBtn" style="border-color:rgba(124,58,237,.3);color:var(--accent2);background:rgba(124,58,247,.1)" onclick="copyHwid()">Copiar</button>
           </div>
         </div>
       </div>
@@ -309,11 +321,14 @@
       const labels = { daily:'Diária', weekly:'Semanal', monthly:'Mensal', lifetime:'Vitalícia' };
       document.getElementById('keysList').innerHTML = data.keys.slice().reverse().map(k => {
         const exp = k.isLifetime ? '♾' : k.keyExpiry ? new Date(k.keyExpiry).toLocaleDateString('pt-BR') : '';
+        const hwidTag = k.hwid
+          ? `<span style="font-family:var(--mono);font-size:.66rem;color:var(--accent2);background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.2);border-radius:4px;padding:2px 7px" title="HWID vinculado">🔒 ${k.hwid}</span>`
+          : `<span class="hwid-tag-none" title="HWID será vinculado na primeira utilização">⏳ HWID pendente</span>`;
         return `<div class="key-item">
           <span class="kv">${k.key}</span>
           <span class="kt kt-${k.keyType||'monthly'}">${labels[k.keyType]||''}</span>
           <span style="font-size:.68rem;color:var(--muted)">${exp}</span>
-          ${k.hwid ? `<span style="font-family:var(--mono);font-size:.66rem;color:var(--accent2);background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.2);border-radius:4px;padding:2px 7px" title="HWID vinculado">🔒 ${k.hwid}</span>` : ''}
+          ${hwidTag}
         </div>`;
       }).join('');
     } else {
@@ -353,23 +368,36 @@
 
   async function generateKey() {
     const hwid = document.getElementById('hwidInput').value.trim();
-    if (!hwid) {
-      showMsg('genMsg','Informe seu HWID antes de gerar a key.','err');
-      document.getElementById('hwidInput').focus();
-      return;
-    }
+    // HWID agora é completamente opcional — não bloqueia mais
     document.getElementById('genBtn').disabled = true;
     document.getElementById('keyResult').style.display = 'none';
     const r = await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({keyType:selectedType,hwid})}).then(x=>x.json());
     document.getElementById('genBtn').disabled = false;
     if (r.ok) {
       document.getElementById('keyText').textContent = r.key;
-      document.getElementById('hwidDisplay').textContent = r.hwid;
       document.getElementById('keyResult').style.display = 'block';
+
       const expEl = document.getElementById('keyExpiry');
       if (r.isLifetime) { expEl.textContent = '♾ Vitalícia — nunca expira'; expEl.style.color='var(--green)'; }
       else if (r.keyExpiry) { expEl.textContent = '⏱ Expira: ' + new Date(r.keyExpiry).toLocaleDateString('pt-BR'); expEl.style.color='var(--accent2)'; }
       else expEl.textContent = '';
+
+      // Se o HWID foi fornecido, mostra ele; senão avisa que será vinculado automaticamente
+      const hwidResultBox = document.getElementById('hwidResultBox');
+      const hwidDisplay = document.getElementById('hwidDisplay');
+      const hwidResultTitle = document.getElementById('hwidResultTitle');
+      const copyHwidBtn = document.getElementById('copyHwidBtn');
+      if (r.hwid && r.hwid !== '') {
+        hwidResultTitle.textContent = '🔒 HWID vinculado';
+        hwidDisplay.textContent = r.hwid;
+        copyHwidBtn.style.display = 'inline';
+      } else {
+        hwidResultTitle.textContent = '⏳ HWID pendente';
+        hwidDisplay.textContent = 'Será vinculado automaticamente na primeira utilização';
+        hwidDisplay.style.color = 'var(--muted)';
+        copyHwidBtn.style.display = 'none';
+      }
+
       showMsg('genMsg','Key gerada com sucesso!','ok');
       setTimeout(checkSession, 600);
     } else if (r.msg==='NOPLAN') {
@@ -380,15 +408,19 @@
   }
 
   function copyHwid() {
-    navigator.clipboard.writeText(document.getElementById('hwidDisplay').textContent).then(()=>{
-      const btns = document.querySelectorAll('.copy-btn');
-      btns.forEach(b=>{ if(b.onclick && b.getAttribute('onclick')==='copyHwid()') { b.textContent='✓ Copiado'; setTimeout(()=>b.textContent='Copiar',2000); } });
+    const text = document.getElementById('hwidDisplay').textContent;
+    navigator.clipboard.writeText(text).then(()=>{
+      const b = document.getElementById('copyHwidBtn');
+      b.textContent='✓ Copiado';
+      setTimeout(()=>b.textContent='Copiar',2000);
     });
   }
 
   function copyKey() {
     navigator.clipboard.writeText(document.getElementById('keyText').textContent).then(()=>{
-      const b = document.querySelector('.copy-btn'); b.textContent='✓ Copiado'; setTimeout(()=>b.textContent='Copiar',2000);
+      const b = document.querySelector('.copy-btn');
+      b.textContent='✓ Copiado';
+      setTimeout(()=>b.textContent='Copiar',2000);
     });
   }
 
