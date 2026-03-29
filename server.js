@@ -113,14 +113,16 @@ app.post('/api/user/prefix', (req, res) => {
   res.json({ ok: true, msg: 'Prefixo salvo!', preview: generateKey(user.keyPrefix, user.keySegments, user.segmentLength) });
 });
 
+// ── GERAR KEY — HWID opcional, vincula na primeira validação ──
 app.post('/api/generate', (req, res) => {
   if (!req.session.userId) return res.json({ ok: false, msg: 'Nao autenticado.' });
   const { keyType, hwid } = req.body;
   const validTypes = ['daily', 'weekly', 'monthly', 'lifetime'];
   if (!validTypes.includes(keyType)) return res.json({ ok: false, msg: 'Tipo de key invalido.' });
-  if (!hwid || typeof hwid !== 'string' || hwid.trim().length < 4) return res.json({ ok: false, msg: 'Informe seu HWID antes de gerar.' });
-  const cleanHwid = hwid.trim().toUpperCase().replace(/[^A-Z0-9\-_]/g, '').slice(0, 64);
-  if (cleanHwid.length < 4) return res.json({ ok: false, msg: 'HWID invalido. Minimo 4 caracteres.' });
+
+  // HWID agora é opcional — se vier, salva; se não vier, fica vazio e vincula na primeira validação
+  const cleanHwid = hwid ? hwid.trim().toUpperCase().replace(/[^A-Z0-9\-_]/g, '').slice(0, 64) : '';
+
   const db = loadDB();
   const user = db.users.find(u => u.id === req.session.userId);
   if (!user) return res.json({ ok: false, msg: 'Usuario nao encontrado.' });
@@ -136,29 +138,45 @@ app.post('/api/generate', (req, res) => {
   res.json({ ok: true, key, hwid: cleanHwid, keyType, keyExpiry, isLifetime });
 });
 
+// ── VALIDAR KEY — vincula HWID automaticamente na primeira vez ──
+function validateKeyLogic(key, hwid, db) {
+  if (!key) return { valid: false, reason: 'key obrigatoria.' };
+  const entry = db.keys.find(k => k.key === key.trim().toUpperCase());
+  if (!entry) return { valid: false, reason: 'Key nao encontrada.' };
+
+  const incomingHwid = hwid ? hwid.trim().toUpperCase().replace(/[^A-Z0-9\-_]/g, '').slice(0, 64) : '';
+
+  // Se a key não tem HWID vinculado, vincula agora com o HWID do script
+  if (!entry.hwid || entry.hwid === '') {
+    entry.hwid = incomingHwid;
+    saveDB(db);
+  } else {
+    // Já tem HWID vinculado — compara
+    if (incomingHwid && entry.hwid !== incomingHwid) {
+      return { valid: false, reason: 'HWID nao corresponde.' };
+    }
+  }
+
+  if (!entry.isLifetime && entry.keyExpiry && new Date(entry.keyExpiry) < new Date()) {
+    return { valid: false, reason: 'Key expirada.', expiredAt: entry.keyExpiry };
+  }
+
+  return { valid: true, username: entry.username, keyType: entry.keyType, keyExpiry: entry.keyExpiry, isLifetime: entry.isLifetime, hwid: entry.hwid };
+}
+
 app.post('/api/validate', (req, res) => {
   const { key, hwid } = req.body;
-  if (!key || !hwid) return res.json({ valid: false, reason: 'key e hwid sao obrigatorios.' });
   const db = loadDB();
-  const entry = db.keys.find(k => k.key === key.trim().toUpperCase());
-  if (!entry) return res.json({ valid: false, reason: 'Key nao encontrada.' });
-  if (entry.hwid !== hwid.trim().toUpperCase()) return res.json({ valid: false, reason: 'HWID nao corresponde.' });
-  if (!entry.isLifetime && entry.keyExpiry && new Date(entry.keyExpiry) < new Date()) return res.json({ valid: false, reason: 'Key expirada.', expiredAt: entry.keyExpiry });
-  res.json({ valid: true, username: entry.username, keyType: entry.keyType, keyExpiry: entry.keyExpiry, isLifetime: entry.isLifetime, hwid: entry.hwid });
+  res.json(validateKeyLogic(key, hwid, db));
 });
 
 app.get('/api/validate', (req, res) => {
   const { key, hwid } = req.query;
-  if (!key || !hwid) return res.json({ valid: false, reason: 'key e hwid sao obrigatorios.' });
   const db = loadDB();
-  const entry = db.keys.find(k => k.key === key.trim().toUpperCase());
-  if (!entry) return res.json({ valid: false, reason: 'Key nao encontrada.' });
-  if (entry.hwid !== hwid.trim().toUpperCase()) return res.json({ valid: false, reason: 'HWID nao corresponde.' });
-  if (!entry.isLifetime && entry.keyExpiry && new Date(entry.keyExpiry) < new Date()) return res.json({ valid: false, reason: 'Key expirada.', expiredAt: entry.keyExpiry });
-  res.json({ valid: true, username: entry.username, keyType: entry.keyType, keyExpiry: entry.keyExpiry, isLifetime: entry.isLifetime, hwid: entry.hwid });
+  res.json(validateKeyLogic(key, hwid, db));
 });
 
-// ADMIN
+// ── ADMIN ────────────────────────────────────────────────────────
 app.post('/api/admin/login', (req, res) => {
   if (req.body.password === ADMIN_PASSWORD) { req.session.isAdmin = true; return res.json({ ok: true }); }
   res.json({ ok: false, msg: 'Senha incorreta.' });
